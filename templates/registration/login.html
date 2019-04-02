@@ -1,0 +1,31 @@
+<!-- set bodyTheme = "u-card-v1" -->
+{% extends 'header.html' %}
+
+{% block title %}
+    Login Page - Raimbek Bottlers
+{% endblock title %}
+{% block content %}
+  <form method="POST" class="form-signin">
+  {% csrf_token %}
+    {% for error in form.non_field.errors %}
+      <p>{{ error }}</p>
+    {% endfor %}
+    {% for field in form %}
+      <div class="form-label-group">
+        <label for="{{ field.id_for_label }}" class="label">{{ field.html_name}}</label><br/>
+        {{ field }}
+      </div>
+      <p>{{ field.help_text }}</p>
+      {% for error in field.errors %}
+        <p>{{ error }}</p>
+      {% endfor %}  
+    {% endfor %}
+                    
+    <!-- Submit Button -->
+    <button class="btn btn-primary" type="submit">
+      Submit
+    </button>
+                  
+  </form>
+
+{% endblock content %}

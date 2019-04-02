@@ -1,0 +1,225 @@
+{% extends 'header.html' %}
+
+{% block css %}
+  <!-- Datatable Style -->
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.19/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/rowreorder/1.2.5/css/rowReorder.dataTables.min.css">
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.3/css/responsive.dataTables.min.css">
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/css/select2.min.css" rel="stylesheet" />
+{% endblock css %}
+{% block title %}
+  Проценты - Аудит торговых точек - Raimbek Bottlers
+{% endblock title %}
+{% block content  %}
+    <h4>Проценты - Аудит торговых точек </h4>
+    <div class="row-fluid">
+        <form class="form-inline">
+            <div class="form-group">
+                <label for="input">Дата от:</label>&nbsp;
+                <input type="date" id="min_date" class="form-control form-control-sm" placeholder="From:">&nbsp;
+            </div>
+            <div class="form-group">
+                <label for="input">Дата до:</label>&nbsp;
+                <input type="date" id="max_date" class="form-control form-control-sm" placeholder="To:">&nbsp;
+            </div>
+            <div class="form-group">
+                <label for="input">Бренд:</label>&nbsp;
+                <select class = "select2-brands form-control" name="brand">
+                    {% for b in brands %}
+                    <option value="{{b.brand}}">{{b.brand}}</option>
+                    {% endfor %}
+                </select>&nbsp;
+            </div>
+            <div class="form-group">
+                <label for="input">Сектор:</label>&nbsp;
+                <select class = "select2-sectors form-control" name="brand">
+                    {% for s in sectors %}
+                    <option value="{{s.sector}}">{{s.sector}}</option>
+                    {% endfor %}
+                </select>&nbsp;
+            </div>
+            <div class="form-group">
+                <label for="input"></label>&nbsp;
+                <button id="send_button" class="btn btn-primary"> Поиск </button>&nbsp;
+            </div>
+        </form>
+
+        
+    </div>
+
+    <br>
+    <div class="row-fluid">  
+        <div id="table_div">
+            <table id="example" class="display nowrap" style="width:100%">
+                <thead>
+                    <tr>
+                    </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+  
+{% endblock content  %}
+{% block js %}
+    <script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/rowreorder/1.2.5/js/dataTables.rowReorder.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.2.3/js/dataTables.responsive.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.6-rc.0/js/select2.min.js"></script>
+
+    <!--<script type="text/javascript" src="https://cdn.datatables.net/v/bs4/dt-1.10.18/r-2.2.2/datatables.min.js"></script>-->
+    <script>
+        
+        $(document).ready( function () {
+            //Set Date for inputs
+            var dat = new Date(),
+                d = dat.getDate(),
+                m = dat.getMonth()+1, 
+                y = dat.getFullYear();
+
+                if(d < 10){
+                    d = "0"+d;
+                };
+                if(m < 10){
+                    m = "0"+m;
+                };
+
+            current_date = y+"-"+m+"-"+d;
+            month_start = y+"-"+m+"-"+"01";
+            $('#min_date').val(month_start);
+            $('#max_date').val(current_date);
+
+            //My Select2 selections
+            $('.select2-brands').select2();
+            $('.select2-sectors').select2();
+            
+               
+
+            //Start search by click
+            $("#send_button").click(function(e){
+                //$("#table_div").html("<table id='example' class='display nowrap' style='width:100%'><thead><tr></tr></thead></table>");
+
+                var brand = $('.select2-brands').val();
+                if((brand=="")||(brand=='None')){brand=''}
+
+                var sector = $('.select2-sectors').val();
+                if((sector=="")||(sector=='None')){sector=''}
+
+                //Get value from DateAfter
+                var date_after = new Date($('#min_date').val());
+                day = date_after.getDate();
+                month = date_after.getMonth() + 1;
+                year = date_after.getFullYear();
+                if(day < 10){
+                    day = "0"+day;
+                };
+                if(month < 10){
+                    month = "0"+month;
+                };
+
+                date_after = [year, month, day].join('-');
+                //Get value from DateBefore
+                var date_bef = new Date($('#max_date').val());
+                day = date_bef.getDate();
+                month = date_bef.getMonth() + 1;
+                year = date_bef.getFullYear();
+                if(day < 10){
+                    day = "0"+day;
+                };
+                if(month < 10){
+                    month = "0"+month;
+                };
+                date_bef = [year, month, day].join('-');
+                
+                e.preventDefault();
+
+                $.ajax({
+                    headers: { "X-CSRFToken": getCookie("csrftoken")},
+                    url: '{% url 'inventory_per_ajax' %}',
+                    type:"POST",
+                    data:{'brand':brand,'sector':sector,'date_after':date_after,'date_bef':date_bef},
+                    success: function(data){
+                        console.log('Success');
+                        //Update div content to default
+                        $("#table_div").html("<table id='example' class='display nowrap' style='width:100%'><thead><tr></tr></thead></table>");
+                        //Render all data to DataTables    
+                        $('#example').DataTable({
+                            rowReorder: {selector:'td:nth-child(2)'},//make Datatable responsive
+                            responsive: true,
+
+                            destroy: true,
+                            "columns":data.columns,
+                            "data":data.data,
+                            drawCallback: function(){
+                                FormatTable();     
+                            },
+
+                            "language": {
+                                "processing": "Подождите...",
+                                "search": "Поиск:",
+                                "lengthMenu": "Показать _MENU_ записей",
+                                "info": "Записи с _START_ до _END_ из _TOTAL_ записей",
+                                "infoEmpty": "Записи с 0 до 0 из 0 записей",
+                                "infoFiltered": "(отфильтровано из _MAX_ записей)",
+                                "infoPostFix": "",
+                                "loadingRecords": "Загрузка записей...",
+                                "zeroRecords": "Записи отсутствуют.",
+                                "emptyTable": "В таблице отсутствуют данные",
+                                "paginate": {
+                                    "first": "Первая",
+                                    "previous": "Предыдущая",
+                                    "next": "Следующая",
+                                    "last": "Последняя"
+                                },
+                                
+                            }
+                        });
+                        //Conditional format
+                        FormatTable();
+                        
+
+
+                    },
+                    error: function(XMLHttpRequest, textStatus, errorThrown) { 
+                        console.log("Status: " + textStatus); 
+                        console.log("Error: " + errorThrown); 
+                    }, 
+                    dataType:"json"
+    
+                });
+            });
+
+            
+            
+            
+
+        });
+
+        function getCookie(c_name)
+        {
+            if (document.cookie.length > 0)
+            {
+                c_start = document.cookie.indexOf(c_name + "=");
+                if (c_start != -1)
+                {
+                    c_start = c_start + c_name.length + 1;
+                    c_end = document.cookie.indexOf(";", c_start);
+                    if (c_end == -1) c_end = document.cookie.length;
+                    return unescape(document.cookie.substring(c_start,c_end));
+                }
+            }
+            return "";
+        }
+        function FormatTable(){
+            $('#example > tbody > tr').each(function(){
+                $(this).children('td').each(function(){
+                    var text_value = $(this).text();
+                    $(this).css('background-color','rgba(99, 255, 71, '+ parseFloat(text_value)/100+')');
+                });
+            });
+        }
+        
+    </script>
+{% endblock js %}
